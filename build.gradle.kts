@@ -3,7 +3,7 @@ import io.gitee.pkmer.enums.PublishingType
 
 plugins {
     `java-library`
-    kotlin("jvm") version "1.9.22"
+    kotlin("jvm") version "2.2.20"
 
     // test coverage
     jacoco
@@ -18,10 +18,10 @@ plugins {
     signing
 
     // plugin for documentation
-    id("org.asciidoctor.jvm.convert") version "3.3.2"
+    id("org.asciidoctor.jvm.convert") version "4.0.5"
 
     // documentation
-    id("org.jetbrains.dokka") version "1.9.10"
+    id("org.jetbrains.dokka-javadoc") version "2.0.0"
 
     id("io.gitee.pkmer.pkmerboot-central-publisher") version "1.1.1"
 }
@@ -44,7 +44,7 @@ java {
     withSourcesJar()
     withJavadocJar()
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -54,17 +54,16 @@ if (project.version.toString().endsWith("-SNAPSHOT")) {
 }
 
 tasks {
-    val copyAsciiDocTask = register<Copy>("copyAsciiDoc") {
+    val copyAsciiDoc = register<Copy>("copyAsciiDoc") {
         includeEmptyDirs = false
 
         val outputDir = project.layout.buildDirectory.dir("tmp/asciidoctorSrc")
-        val inputFiles = fileTree(rootDir) {
-            include("**/*.asciidoc")
-            exclude("build/**")
-        }
+        val inputFiles = fileTree(mapOf("dir" to rootDir,
+            "include" to listOf("**/*.asciidoc"),
+            "exclude" to listOf("build/**")))
 
-        inputs.files.plus( inputFiles )
-        outputs.dir( outputDir )
+        inputs.files.plus(inputFiles)
+        outputs.dir(outputDir)
 
         doFirst {
             outputDir.get().asFile.mkdir()
@@ -75,26 +74,23 @@ tasks {
     }
 
     withType<AsciidoctorTask> {
-        dependsOn(copyAsciiDocTask)
-        sourceDirProperty.set(project.provider<Directory>{
-            val dir = project.objects.directoryProperty()
-            dir.set(copyAsciiDocTask.get().outputs.files.first())
-            dir.get()
-        })
-        sources {
+        dependsOn(copyAsciiDoc)
+
+        setSourceDir(project.layout.buildDirectory.dir("tmp/asciidoctorSrc"))
+        sources(delegateClosureOf<PatternSet> {
             include("README.asciidoc")
-        }
+        })
 
         outputOptions {
             setBackends(listOf("html5", "docbook"))
         }
 
-        options = mapOf(
-            "doctype" to "article",
-            "ruby"    to "erubis"
-        )
-        attributes = mapOf(
-            "latestRevision"        to  project.version,
+        setOptions(mapOf(
+            "doctype"               to "article",
+            "ruby"                  to "erubis"
+        ))
+        setAttributes(mapOf(
+            "latestRevision"        to project.version,
             "toc"                   to "left",
             "toclevels"             to "2",
             "source-highlighter"    to "coderay",
@@ -103,15 +99,11 @@ tasks {
             "idprefix"              to "asciidoc",
             "idseparator"           to "-",
             "docinfo1"              to "true"
-        )
+        ))
     }
 
     jar.configure {
         dependsOn(asciidoctor)
-    }
-
-    dokkaJavadoc.configure {
-        outputDirectory.set(project.layout.buildDirectory.dir("javadoc"))
     }
 
     withType<Sign> {
@@ -125,9 +117,9 @@ tasks {
     }
 
     afterEvaluate {
-        named<Jar>("javadocJar") {
-            dependsOn(dokkaJavadoc)
-            from(dokkaJavadoc)
+        getByName<Jar>("javadocJar") {
+            dependsOn(dokkaGenerate)
+            from(dokkaGeneratePublicationJavadoc)
         }
     }
 }
@@ -208,7 +200,7 @@ signing {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
-    compileOnly("org.slf4j:slf4j-api:2.0.9")
+    compileOnly("org.slf4j:slf4j-api:2.0.17")
 }
