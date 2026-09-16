@@ -3,7 +3,7 @@ import io.gitee.pkmer.enums.PublishingType
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.4.20"
 
     // test coverage
     jacoco
@@ -18,10 +18,16 @@ plugins {
     signing
 
     // plugin for documentation
+    // NOTE: 4.0.5 (Aug 2025) is the latest release; its internal 'grolifant' library still calls the
+    // deprecated StartParameter.isConfigurationCacheRequested, which will be removed in Gradle 10.
+    // There is no alternative plugin (the xbib fork is broken on Gradle 9, all other asciidoc
+    // plugins are generators, not renderers). An org.asciidoctor 5.0.0-alpha.1 line exists since
+    // Sep 2025, so a final 5.x is expected to be available by the time Gradle 10 is released -
+    // upgrade to it then.
     id("org.asciidoctor.jvm.convert") version "4.0.5"
 
     // documentation
-    id("org.jetbrains.dokka-javadoc") version "2.0.0"
+    id("org.jetbrains.dokka-javadoc") version "2.2.0"
 
     id("io.gitee.pkmer.pkmerboot-central-publisher") version "1.1.1"
 }
@@ -29,11 +35,11 @@ plugins {
 group = "com.intershop.gradle.jobrunner"
 description = "ICM JobRunner library to use in Gradle Plugins"
 // apply gradle property 'projectVersion' to project.version, default to 'LOCAL'
-val projectVersion : String? by project
+val projectVersion = project.findProperty("projectVersion") as String?
 version = projectVersion ?: "LOCAL"
 
-val sonatypeUsername: String? by project
-val sonatypePassword: String? by project
+val sonatypeUsername = project.findProperty("sonatypeUsername") as String?
+val sonatypePassword = project.findProperty("sonatypePassword") as String?
 
 repositories {
     mavenLocal()
@@ -200,7 +206,7 @@ signing {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
-    compileOnly("org.slf4j:slf4j-api:2.0.17")
+    compileOnly("org.slf4j:slf4j-api:2.0.19")
 }
